@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: '.python-version'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Set VERSION environment variable
+        run: |
+          echo "VERSION=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          pytest
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/version.sh
+          chmod +x scripts/package.sh
+
+      - name: Update version in project files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./scripts/version.sh
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CURRENT_TAG="${{ github.ref_name }}"
+
+          ALL_TAGS=$(git tag --sort=-version:refname)
+          PREVIOUS_TAG=$(echo "$ALL_TAGS" | awk "/^${CURRENT_TAG}$/{getline; print; exit}" || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "## Changes in v$VERSION" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Commits" >> CHANGELOG.md
+            git log --pretty=format:"- %s (%an, %ad)" --date=short >> CHANGELOG.md
+          else
+            echo "## Changes in v$VERSION" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "### Commits" >> CHANGELOG.md
+            git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%an, %ad)" --date=short >> CHANGELOG.md
+          fi
+
+          CHANGELOG_CONTENT=$(cat CHANGELOG.md)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create distribution package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ./scripts/package.sh
+
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
+          draft: true
+          files: |
+            dist/energyid-monitor-v${{ steps.version.outputs.version }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
