@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any, TypedDict
@@ -126,18 +127,37 @@ async def call_hello(
         }
 
 
+class ActiveCredentials(TypedDict):
+    """Bearer credentials plus the webhook URL to use for this post."""
+
+    bearer_token: str
+    twin_id: str
+    exp: int
+    webhook_url: str
+
+
 async def get_or_refresh_token(
     session: aiohttp.ClientSession,
     config: ProvisioningConfig,
     db_path: str | Path = token_store.DEFAULT_DB_PATH,
-) -> token_store.StoredToken:
-    """Get a valid token from cache or fetch a new one if missing/expired."""
+) -> ActiveCredentials:
+    """Get a valid token from cache or fetch a new one if missing/expired.
+
+    When a fresh `/hello` response is used, the webhook URL from that response
+    is preferred (falling back to ENERGYID_WEBHOOK_URL). Cached tokens reuse
+    the configured webhook URL from the environment.
+    """
     await token_store.ensure_db(db_path)
     cached = await token_store.get_latest_token(db_path)
 
     if cached and token_store.is_token_valid(cached):
         logger.info("Using cached token (valid)")
-        return cached
+        return {
+            "bearer_token": cached["bearer_token"],
+            "twin_id": cached["twin_id"],
+            "exp": cached["exp"],
+            "webhook_url": config["webhook_url"],
+        }
 
     logger.info(
         "Fetching new token from hello endpoint (cache miss or expired/expiring)"
@@ -150,7 +170,12 @@ async def get_or_refresh_token(
     }
     await token_store.store_token(new_token, db_path)
     logger.info("New token stored in database")
-    return new_token
+    return {
+        "bearer_token": hello_response["bearer_token"],
+        "twin_id": hello_response["twin_id"],
+        "exp": hello_response["exp"],
+        "webhook_url": hello_response["webhook_url"],
+    }
 
 
 async def post_webhook_in(
@@ -187,14 +212,14 @@ async def _post_with_token_retry(
     db_path: str | Path = token_store.DEFAULT_DB_PATH,
 ) -> dict:
     """Post webhook data, refreshing the token once on HTTP 401."""
-    tokens = await get_or_refresh_token(session, config, db_path)
+    credentials = await get_or_refresh_token(session, config, db_path)
     try:
         return await post_webhook_in(
             session,
-            bearer_token=tokens["bearer_token"],
-            twin_id=tokens["twin_id"],
+            bearer_token=credentials["bearer_token"],
+            twin_id=credentials["twin_id"],
             payload=payload,
-            webhook_url=config["webhook_url"],
+            webhook_url=credentials["webhook_url"],
         )
     except PermissionError:
         logger.warning("Webhook returned 401; refreshing EnergyID token and retrying")
@@ -243,5 +268,7 @@ async def main() -> None:
         OSError,
     ) as exc:
         logger.error(f"EnergyID flow failed: Connection error - {exc}")
+        sys.exit(1)
     except Exception:  # noqa: BLE001
         logger.exception("EnergyID flow failed")
+        sys.exit(1)

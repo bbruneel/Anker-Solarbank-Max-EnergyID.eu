@@ -1,4 +1,4 @@
-# Anker Solarbank Max 2 EnergyID.eu
+# Anker Solarbank Max AC EnergyID.eu
 
 Python application that reads an [Anker SOLIX Solarbank Max AC](https://www.ankersolix.com/) over **local Modbus TCP** and posts the measurements to [EnergyID](https://www.energyid.eu/) every 5 minutes.
 
