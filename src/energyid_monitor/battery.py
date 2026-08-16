@@ -23,13 +23,6 @@ DEVICE_CONFIG_PATH = (
     Path(__file__).resolve().parent / "devices" / "solarbank_max_ac.yaml"
 )
 
-BATTERY_STATUS_MAP = {
-    0: "standby",
-    1: "charging",
-    2: "discharging",
-    3: "sleep",
-}
-
 # EnergyID predefined keys:
 # https://help.energyid.eu/en/developer/incoming-webhooks/
 ENERGYID_CUMULATIVE_KWH = {
@@ -40,6 +33,17 @@ ENERGYID_CUMULATIVE_KWH = {
 ENERGYID_SOC_KEY = "battery_soc"
 ENERGYID_GRID_IMPORT_W = "grid_import_power"
 ENERGYID_GRID_EXPORT_W = "grid_export_power"
+
+# Snapshot keys required before posting to EnergyID. Incomplete Modbus reads
+# that omit these would upload misleading partial payloads.
+REQUIRED_SNAPSHOT_KEYS = (
+    "pv_total_generation",
+    "cumulative_charge_energy",
+    "cumulative_discharge_energy",
+    "battery_soc",
+    "grid_import_power",
+    "grid_export_power",
+)
 
 
 class BatteryConfig(TypedDict):
@@ -100,12 +104,35 @@ def _post_process(raw: dict[str, Any], data_points: dict[str, Any]) -> dict[str,
     return processed
 
 
+def validate_snapshot(snapshot: dict[str, Any]) -> None:
+    """Raise if required EnergyID source keys are missing or non-numeric."""
+    missing: list[str] = []
+    invalid: list[str] = []
+    for key in REQUIRED_SNAPSHOT_KEYS:
+        if key not in snapshot:
+            missing.append(key)
+            continue
+        if not isinstance(snapshot[key], (int, float)):
+            invalid.append(key)
+    if missing or invalid:
+        details: list[str] = []
+        if missing:
+            details.append(f"missing={missing}")
+        if invalid:
+            details.append(f"non-numeric={invalid}")
+        raise RuntimeError(
+            "Incomplete Solarbank snapshot; refusing EnergyID upload "
+            f"({', '.join(details)})"
+        )
+
+
 def to_energyid_payload(snapshot: dict[str, Any], timestamp: int) -> dict[str, Any]:
     """Map a battery snapshot to EnergyID predefined webhook keys.
 
     Units follow https://help.energyid.eu/en/developer/incoming-webhooks/ :
     cumulative energy in kWh, grid power gauges in kW, SoC in %.
     """
+    validate_snapshot(snapshot)
     payload: dict[str, Any] = {"ts": timestamp}
 
     for energyid_key, source_key in ENERGYID_CUMULATIVE_KWH.items():

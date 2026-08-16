@@ -115,6 +115,9 @@ async def call_hello(
         policy = body.get("webhookPolicy") or {}
         upload_interval = policy.get("uploadInterval")
         if upload_interval:
+            # Rate limiting is intentional cron/systemd responsibility: this
+            # process is a one-shot and does not sleep to enforce uploadInterval.
+            # Schedule runs at or above the interval returned by /hello.
             logger.info(f"EnergyID uploadInterval is {upload_interval} seconds")
 
         masked_token = logging_config.mask_token(bearer_token)

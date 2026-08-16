@@ -62,7 +62,7 @@ async def get_latest_token(db_path: str | Path = DEFAULT_DB_PATH) -> StoredToken
 async def store_token(
     token: StoredToken, db_path: str | Path = DEFAULT_DB_PATH
 ) -> None:
-    """Persist a new token record."""
+    """Persist a new token record and prune expired rows."""
     db_path_str, is_uri, _ = _normalize_db_path(db_path)
     now = int(time.time())
     async with aiosqlite.connect(db_path_str, uri=is_uri) as conn:
@@ -73,6 +73,8 @@ async def store_token(
             """,
             (token["bearer_token"], token["twin_id"], int(token["exp"]), now, now),
         )
+        # Drop rows already past expiry so the cache stays small for cron runs.
+        await conn.execute("DELETE FROM tokens WHERE exp <= ?", (now,))
         await conn.commit()
 
 

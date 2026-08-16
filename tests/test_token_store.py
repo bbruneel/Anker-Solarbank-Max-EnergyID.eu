@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import aiosqlite
 import pytest
 
 from energyid_monitor import token_store
@@ -111,6 +112,53 @@ def test_is_token_valid_with_buffer() -> None:
 
 
 @pytest.mark.asyncio
+async def test_store_token_prunes_expired_rows(in_memory_db: str) -> None:
+    """Expired rows are deleted when a new token is stored."""
+    await token_store.ensure_db(in_memory_db)
+    now = int(time.time())
+
+    await token_store.store_token(
+        {
+            "bearer_token": "expired_bearer",
+            "twin_id": "expired_twin",
+            "exp": now - 10,
+        },
+        in_memory_db,
+    )
+    # Expired insert is pruned immediately, so cache should be empty.
+    assert await token_store.get_latest_token(in_memory_db) is None
+
+    await token_store.store_token(
+        {
+            "bearer_token": "still_valid",
+            "twin_id": "valid_twin",
+            "exp": now + 100,
+        },
+        in_memory_db,
+    )
+    await token_store.store_token(
+        {
+            "bearer_token": "newest",
+            "twin_id": "newest_twin",
+            "exp": now + 7200,
+        },
+        in_memory_db,
+    )
+
+    latest = await token_store.get_latest_token(in_memory_db)
+    assert latest is not None
+    assert latest["bearer_token"] == "newest"
+
+    # The near-expiry-but-not-yet-expired row (exp = now + 100) remains until
+    # it expires; only exp <= now rows are pruned.
+    async with aiosqlite.connect(in_memory_db) as conn:
+        cursor = await conn.execute("SELECT COUNT(*) FROM tokens")
+        count = (await cursor.fetchone())[0]
+        await cursor.close()
+    assert count == 2
+
+
+@pytest.mark.asyncio
 async def test_get_or_refresh_uses_cached_valid_token(
     in_memory_db: str, mock_config: ProvisioningConfig
 ) -> None:
@@ -131,6 +179,7 @@ async def test_get_or_refresh_uses_cached_valid_token(
         mock_hello.assert_not_called()
         assert result["bearer_token"] == "cached_bearer"
         assert result["twin_id"] == "cached_twin"
+        assert result["webhook_url"] == mock_config["webhook_url"]
 
 
 @pytest.mark.asyncio
@@ -163,6 +212,7 @@ async def test_get_or_refresh_fetches_new_when_expired(
         assert result["bearer_token"] == "new_bearer"
         assert result["twin_id"] == "new_twin"
         assert result["exp"] == new_exp
+        assert result["webhook_url"] == "https://hooks.energyid.eu/webhook-in"
 
         stored = await token_store.get_latest_token(in_memory_db)
         assert stored is not None
@@ -190,6 +240,7 @@ async def test_get_or_refresh_fetches_new_when_no_cache(
         result = await get_or_refresh_token(mock_session, mock_config, in_memory_db)
         mock_hello.assert_called_once()
         assert result["bearer_token"] == "first_bearer"
+        assert result["webhook_url"] == "https://hooks.energyid.eu/webhook-in"
 
         stored = await token_store.get_latest_token(in_memory_db)
         assert stored is not None

@@ -1,9 +1,14 @@
+from unittest.mock import patch
+
+import pytest
+
 from energyid_monitor.battery import (
     _post_process,
     load_device_yaml,
     to_energyid_payload,
 )
 from energyid_monitor.modbus_client import (
+    AnkerModbusClient,
     apply_gain,
     apply_power_split,
     decode_register_value,
@@ -102,8 +107,64 @@ def test_energyid_payload_mapping() -> None:
     }
 
 
+def test_energyid_payload_rejects_incomplete_snapshot() -> None:
+    with pytest.raises(RuntimeError, match="Incomplete Solarbank snapshot"):
+        to_energyid_payload(
+            {
+                "pv_total_generation": 6.1,
+                "battery_soc": 69,
+            },
+            timestamp=1733835004,
+        )
+
+
 def test_bundled_yaml_loads() -> None:
     config = load_device_yaml()
     assert config["product_info"]["default_name"] == "Anker SOLIX Solarbank Max AC"
     assert "battery_soc" in config["read_quantities"]
     assert config["read_quantities"]["battery_soc"]["address"] == 10014
+
+
+@pytest.mark.asyncio
+async def test_read_all_decodes_from_batch_ranges() -> None:
+    client = AnkerModbusClient(host="127.0.0.1")
+    data_points = {
+        "battery_soc": {
+            "address": 10014,
+            "data_type": "UINT16",
+            "count": 1,
+            "gain": 1,
+        },
+        "pv_total_generation": {
+            "address": 10018,
+            "data_type": "UINT32",
+            "count": 2,
+            "gain": 10,
+        },
+        "battery_charging_power": {
+            "address": 10008,
+            "data_type": "INT32",
+            "count": 2,
+            "gain": 1,
+        },
+    }
+    batch_ranges = [(10000, 10050, "input")]
+
+    async def fake_read(start: int, count: int, reg_type: str) -> list[int]:
+        assert start == 10000
+        assert count == 51
+        assert reg_type == "input"
+        registers = [0] * count
+        registers[14] = 69  # battery_soc at 10014
+        registers[18] = 0  # pv_total_generation high
+        registers[19] = 61  # pv_total_generation low (raw 61 / gain 10)
+        registers[8] = 65535  # battery_charging_power INT32 -390
+        registers[9] = 65146
+        return registers
+
+    with patch.object(client, "_read_range", side_effect=fake_read):
+        data = await client.read_all(data_points, batch_ranges)
+
+    assert data["battery_soc"] == 69
+    assert data["pv_total_generation"] == 6.1
+    assert data["battery_charging_power"] == -390
