@@ -23,27 +23,17 @@ DEVICE_CONFIG_PATH = (
     Path(__file__).resolve().parent / "devices" / "solarbank_max_ac.yaml"
 )
 
-# EnergyID predefined keys:
+# EnergyID predefined webhook keys supported by this integration:
 # https://help.energyid.eu/en/developer/incoming-webhooks/
-ENERGYID_CUMULATIVE_KWH = {
+ENERGYID_WEBHOOK_KEY_SOURCES: dict[str, str] = {
     "pv": "pv_total_generation",
     "bat": "cumulative_charge_energy",
     "bat-i": "cumulative_discharge_energy",
+    "bat-soc": "battery_soc",
+    "pwr": "grid_import_power",
+    "pwr-i": "grid_export_power",
 }
-ENERGYID_SOC_KEY = "battery_soc"
-ENERGYID_GRID_IMPORT_W = "grid_import_power"
-ENERGYID_GRID_EXPORT_W = "grid_export_power"
-
-# Snapshot keys required before posting to EnergyID. Incomplete Modbus reads
-# that omit these would upload misleading partial payloads.
-REQUIRED_SNAPSHOT_KEYS = (
-    "pv_total_generation",
-    "cumulative_charge_energy",
-    "cumulative_discharge_energy",
-    "battery_soc",
-    "grid_import_power",
-    "grid_export_power",
-)
+DEFAULT_ENERGYID_WEBHOOK_KEYS = tuple(ENERGYID_WEBHOOK_KEY_SOURCES.keys())
 
 
 class BatteryConfig(TypedDict):
@@ -52,6 +42,32 @@ class BatteryConfig(TypedDict):
     ip_address: str
     port: int
     device_id: int
+
+
+def load_energyid_webhook_keys() -> tuple[str, ...]:
+    """Load comma-separated EnergyID webhook keys from ENERGYID_WEBHOOK_KEYS."""
+    raw = common._require_env(
+        "ENERGYID_WEBHOOK_KEYS",
+        default=",".join(DEFAULT_ENERGYID_WEBHOOK_KEYS),
+    )
+    keys: list[str] = []
+    seen: set[str] = set()
+    for key in raw.split(","):
+        normalized = key.strip()
+        if not normalized:
+            continue
+        if normalized not in ENERGYID_WEBHOOK_KEY_SOURCES:
+            supported = ", ".join(DEFAULT_ENERGYID_WEBHOOK_KEYS)
+            raise ValueError(
+                f"Unknown ENERGYID_WEBHOOK_KEYS entry {normalized!r}; "
+                f"supported keys: {supported}"
+            )
+        if normalized not in seen:
+            keys.append(normalized)
+            seen.add(normalized)
+    if not keys:
+        raise ValueError("ENERGYID_WEBHOOK_KEYS must list at least one key")
+    return tuple(keys)
 
 
 def load_battery_config() -> BatteryConfig:
@@ -104,11 +120,16 @@ def _post_process(raw: dict[str, Any], data_points: dict[str, Any]) -> dict[str,
     return processed
 
 
-def validate_snapshot(snapshot: dict[str, Any]) -> None:
-    """Raise if required EnergyID source keys are missing or non-numeric."""
+def validate_snapshot(
+    snapshot: dict[str, Any],
+    webhook_keys: tuple[str, ...] | None = None,
+) -> None:
+    """Raise if selected EnergyID source keys are missing or non-numeric."""
+    webhook_keys = webhook_keys or load_energyid_webhook_keys()
+    required_sources = {ENERGYID_WEBHOOK_KEY_SOURCES[key] for key in webhook_keys}
     missing: list[str] = []
     invalid: list[str] = []
-    for key in REQUIRED_SNAPSHOT_KEYS:
+    for key in sorted(required_sources):
         if key not in snapshot:
             missing.append(key)
             continue
@@ -126,31 +147,29 @@ def validate_snapshot(snapshot: dict[str, Any]) -> None:
         )
 
 
-def to_energyid_payload(snapshot: dict[str, Any], timestamp: int) -> dict[str, Any]:
+def to_energyid_payload(
+    snapshot: dict[str, Any],
+    timestamp: int,
+    webhook_keys: tuple[str, ...] | None = None,
+) -> dict[str, Any]:
     """Map a battery snapshot to EnergyID predefined webhook keys.
 
     Units follow https://help.energyid.eu/en/developer/incoming-webhooks/ :
     cumulative energy in kWh, grid power gauges in kW, SoC in %.
     """
-    validate_snapshot(snapshot)
+    webhook_keys = webhook_keys or load_energyid_webhook_keys()
+    validate_snapshot(snapshot, webhook_keys)
     payload: dict[str, Any] = {"ts": timestamp}
 
-    for energyid_key, source_key in ENERGYID_CUMULATIVE_KWH.items():
-        value = snapshot.get(source_key)
-        if isinstance(value, (int, float)):
+    for energyid_key in webhook_keys:
+        source_key = ENERGYID_WEBHOOK_KEY_SOURCES[energyid_key]
+        value = snapshot[source_key]
+        if energyid_key in {"pwr", "pwr-i"}:
+            payload[energyid_key] = round(float(value) / 1000.0, 3)
+        elif energyid_key == "bat-soc":
+            payload[energyid_key] = round(float(value), 1)
+        else:
             payload[energyid_key] = round(float(value), 3)
-
-    soc = snapshot.get(ENERGYID_SOC_KEY)
-    if isinstance(soc, (int, float)):
-        payload["bat-soc"] = round(float(soc), 1)
-
-    import_w = snapshot.get(ENERGYID_GRID_IMPORT_W)
-    if isinstance(import_w, (int, float)):
-        payload["pwr"] = round(float(import_w) / 1000.0, 3)
-
-    export_w = snapshot.get(ENERGYID_GRID_EXPORT_W)
-    if isinstance(export_w, (int, float)):
-        payload["pwr-i"] = round(float(export_w) / 1000.0, 3)
 
     return payload
 
