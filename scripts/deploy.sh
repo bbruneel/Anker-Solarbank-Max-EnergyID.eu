@@ -5,16 +5,16 @@
 set -e  # Exit on error
 
 # Parse command-line arguments
-INSTALL_DIR="/var/lib/energyid-monitor"
-LOG_DIR="/var/log/energyid"
+INSTALL_DIR="/var/lib/energyid-solarbank-monitor"
+LOG_DIR="/var/log/energyid-solarbank"
 
 # Show usage information
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -i, --install-dir DIR    Installation directory (default: /var/lib/energyid-monitor)"
-    echo "  -l, --log-dir DIR        Log directory (default: /var/log/energyid)"
+    echo "  -i, --install-dir DIR    Installation directory (default: /var/lib/energyid-solarbank-monitor)"
+    echo "  -l, --log-dir DIR        Log directory (default: /var/log/energyid-solarbank)"
     echo "  -h, --help               Show this help message"
     echo ""
     echo "Examples:"
@@ -217,7 +217,7 @@ cat > "$INSTALL_DIR/run.sh" << EOF
 #!/bin/bash
 cd $INSTALL_DIR
 source .venv/bin/activate
-python -m energyid_monitor >> $LOG_DIR/energyid.log 2>&1
+python -m energyid_monitor >> $LOG_DIR/energyid-solarbank.log 2>&1
 EOF
 
 chmod +x "$INSTALL_DIR/run.sh"
@@ -261,7 +261,7 @@ echo "   Option B - Using systemd timer (recommended):"
 echo "   See DEPLOYMENT.md for detailed instructions"
 echo ""
 echo "4. Monitor logs:"
-echo "   tail -f $LOG_DIR/energyid.log"
+echo "   tail -f $LOG_DIR/energyid-solarbank.log"
 echo ""
 echo "For detailed documentation, see DEPLOYMENT.md"
 echo ""

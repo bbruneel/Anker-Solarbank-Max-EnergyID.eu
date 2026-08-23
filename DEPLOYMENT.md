@@ -10,6 +10,19 @@ This guide explains how to deploy the EnergyID application on a Linux system and
 - Internet access to EnergyID API
 - Root or sudo access for initial setup
 
+## Co-installation with APsystems EZ1 monitor
+
+This project shares layout and conventions with [APsystems-EZ1-energyid.eu](https://github.com/bbruneel/APsystems-EZ1-energyid.eu). If both monitors run on the **same host**, keep their paths and scheduler names separate:
+
+| Resource | This project (Solarbank) | APsystems EZ1 (sibling) |
+| --- | --- | --- |
+| Install directory | `/var/lib/energyid-solarbank-monitor` | `/var/lib/energyid-monitor` |
+| Log file | `/var/log/energyid-solarbank/energyid-solarbank.log` | `/var/log/energyid/energyid.log` |
+| systemd units | `energyid-solarbank.service` / `.timer` | `energyid.service` / `.timer` |
+| Token cache | `$INSTALL_DIR/data/token.db` | `$INSTALL_DIR/data/token.db` (separate per install dir) |
+
+Do **not** point both apps at the same install directory, log file, or systemd unit names. Each needs its own EnergyID provisioning credentials and device id anyway.
+
 ## Quick Start (Automated Deployment)
 
 For a quick automated setup, use the provided `scripts/deploy.sh` script:
@@ -31,18 +44,18 @@ chmod +x scripts/deploy.sh
 ### Command-Line Options
 
 The `deploy.sh` script accepts the following options:
-- `-i, --install-dir DIR` - Installation directory (default: `/var/lib/energyid-monitor`)
-- `-l, --log-dir DIR` - Log directory (default: `/var/log/energyid`)
+- `-i, --install-dir DIR` - Installation directory (default: `/var/lib/energyid-solarbank-monitor`)
+- `-l, --log-dir DIR` - Log directory (default: `/var/log/energyid-solarbank`)
 - `-h, --help` - Show help message
 
 The script will automatically:
 - ✅ Check Python version (requires 3.11+)
-- ✅ Create `/var/lib/energyid-monitor` directory
+- ✅ Create `/var/lib/energyid-solarbank-monitor` directory
 - ✅ Copy all application files
 - ✅ Set up Python virtual environment
 - ✅ Install dependencies (using `uv` if available, otherwise `pip`)
 - ✅ Create `.env` configuration file from template
-- ✅ Create log directory at `/var/log/energyid`
+- ✅ Create log directory at `/var/log/energyid-solarbank`
 - ✅ Create `run.sh` wrapper script
 - ✅ Set proper file permissions
 
@@ -50,12 +63,12 @@ The script will automatically:
 
 1. **Edit the .env file with your actual credentials:**
    ```bash
-   nano /var/lib/energyid-monitor/.env
+   nano /var/lib/energyid-solarbank-monitor/.env
    ```
 
 2. **Test the application:**
    ```bash
-   cd /var/lib/energyid-monitor
+   cd /var/lib/energyid-solarbank-monitor
    source .venv/bin/activate
    python -m energyid_monitor
    ```
@@ -106,11 +119,11 @@ Option B: Use pip (traditional method):
 
 ```bash
 # Create application directory
-sudo mkdir -p /var/lib/energyid-monitor
-sudo chown $USER:$USER /var/lib/energyid-monitor
+sudo mkdir -p /var/lib/energyid-solarbank-monitor
+sudo chown $USER:$USER /var/lib/energyid-solarbank-monitor
 
 # Copy all application files to the deployment directory
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 # (Upload/copy your files here: src/, pyproject.toml, dbscripts/, scripts/, etc.)
 ```
 
@@ -118,7 +131,7 @@ cd /var/lib/energyid-monitor
 
 Using uv (recommended):
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 uv venv
 source .venv/bin/activate
 uv pip install -e .
@@ -128,7 +141,7 @@ This installs the package in editable mode, allowing it to be run as `python -m 
 
 Using pip:
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -139,7 +152,7 @@ This installs the package in editable mode from `pyproject.toml`, which includes
 ### 5. Configure environment variables
 
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 cp .env.example .env
 nano .env  # or vim, vi, etc.
 ```
@@ -158,13 +171,13 @@ Fill in your actual values:
 
 **Optional logging configuration:**
 - `ENERGYID_LOG_LEVEL` - Log level (default: `INFO`, options: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)
-- `ENERGYID_LOG_FILE` - Log file path (default: `/var/log/energyid/energyid.log`)
+- `ENERGYID_LOG_FILE` - Log file path (default: `/var/log/energyid-solarbank/energyid-solarbank.log`)
 - `ENERGYID_CONSOLE_LOGGING` - Enable console logging to stdout (default: `false`, set to `true` to enable)
 
 ### 6. Test the application
 
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 source .venv/bin/activate
 python -m energyid_monitor
 ```
@@ -188,7 +201,7 @@ The application uses loguru for structured logging with:
 
 The application will automatically create:
 - A `data/` directory with a SQLite database (`token.db`) to cache authentication tokens
-- The log directory if it doesn't exist (default: `/var/log/energyid/`)
+- The log directory if it doesn't exist (default: `/var/log/energyid-solarbank/`)
 
 If you see errors, check your configuration and network connectivity.
 
@@ -198,23 +211,23 @@ Create a script that handles the virtual environment activation:
 
 Create a script that handles the virtual environment activation:
 ```bash
-cat > /var/lib/energyid-monitor/run.sh << 'EOF'
+cat > /var/lib/energyid-solarbank-monitor/run.sh << 'EOF'
 #!/bin/bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 source .venv/bin/activate
-python -m energyid_monitor >> /var/log/energyid/energyid.log 2>&1
+python -m energyid_monitor >> /var/log/energyid-solarbank/energyid-solarbank.log 2>&1
 EOF
 
-chmod +x /var/lib/energyid-monitor/run.sh
+chmod +x /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
-**Note:** The application uses loguru for logging, which automatically writes to the configured log file. The script above doesn't need to redirect output since loguru handles file logging internally. However, if you want to also capture stdout/stderr separately, you can still add `>> /var/log/energyid/energyid.log 2>&1` to the end.
+**Note:** The application uses loguru for logging, which automatically writes to the configured log file. The script above doesn't need to redirect output since loguru handles file logging internally. However, if you want to also capture stdout/stderr separately, you can still add `>> /var/log/energyid-solarbank/energyid-solarbank.log 2>&1` to the end.
 
 ### 8. Create log directory
 
 ```bash
-sudo mkdir -p /var/log/energyid
-sudo chown $USER:$USER /var/log/energyid
+sudo mkdir -p /var/log/energyid-solarbank
+sudo chown $USER:$USER /var/log/energyid-solarbank
 ```
 
 ### 9. Set up crontab to run every 5 minutes
@@ -227,7 +240,7 @@ crontab -e
 
 Add this line:
 ```
-*/5 * * * * /var/lib/energyid-monitor/run.sh
+*/5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 This will run the script every 5 minutes.
@@ -236,7 +249,7 @@ This will run the script every 5 minutes.
 
 Wait 5 minutes and check the log:
 ```bash
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 ```
 
 You should see new entries every 5 minutes.
@@ -250,24 +263,24 @@ Instead of cron, you can use systemd timers for better logging and control:
 ### Create systemd service file
 
 ```bash
-sudo nano /etc/systemd/system/energyid.service
+sudo nano /etc/systemd/system/energyid-solarbank.service
 ```
 
 Content:
 ```ini
 [Unit]
-Description=EnergyID Data Collector
+Description=EnergyID Solarbank Data Collector
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 User=YOUR_USERNAME
-WorkingDirectory=/var/lib/energyid-monitor
-Environment="PATH=/var/lib/energyid-monitor/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/var/lib/energyid-monitor/.venv/bin/python -m energyid_monitor
-StandardOutput=append:/var/log/energyid/energyid.log
-StandardError=append:/var/log/energyid/energyid.log
+WorkingDirectory=/var/lib/energyid-solarbank-monitor
+Environment="PATH=/var/lib/energyid-solarbank-monitor/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/var/lib/energyid-solarbank-monitor/.venv/bin/python -m energyid_monitor
+StandardOutput=append:/var/log/energyid-solarbank/energyid-solarbank.log
+StandardError=append:/var/log/energyid-solarbank/energyid-solarbank.log
 
 [Install]
 WantedBy=multi-user.target
@@ -278,14 +291,14 @@ Replace `YOUR_USERNAME` with your actual username.
 ### Create systemd timer file
 
 ```bash
-sudo nano /etc/systemd/system/energyid.timer
+sudo nano /etc/systemd/system/energyid-solarbank.timer
 ```
 
 Content:
 ```ini
 [Unit]
-Description=Run EnergyID Data Collector every 5 minutes
-Requires=energyid.service
+Description=Run EnergyID Solarbank Data Collector every 5 minutes
+Requires=energyid-solarbank.service
 
 [Timer]
 OnBootSec=2min
@@ -300,36 +313,36 @@ WantedBy=timers.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable energyid.timer
-sudo systemctl start energyid.timer
+sudo systemctl enable energyid-solarbank.timer
+sudo systemctl start energyid-solarbank.timer
 ```
 
 ### Check timer status
 
 ```bash
-sudo systemctl status energyid.timer
-sudo systemctl list-timers energyid.timer
+sudo systemctl status energyid-solarbank.timer
+sudo systemctl list-timers energyid-solarbank.timer
 ```
 
 ### View logs
 
 ```bash
 # Real-time logs from systemd journal
-sudo journalctl -u energyid.service -f
+sudo journalctl -u energyid-solarbank.service -f
 
 # Or check the log file (loguru writes directly to file)
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 
 # View logs with log level filtering
-grep "INFO" /var/log/energyid/energyid.log
+grep "INFO" /var/log/energyid-solarbank/energyid-solarbank.log
 ```
 
 ## Troubleshooting
 
 ### Script doesn't run
 - Check crontab syntax: `crontab -l`
-- Check script permissions: `ls -la /var/lib/energyid-monitor/run.sh`
-- Check log files: `tail -f /var/log/energyid/energyid.log`
+- Check script permissions: `ls -la /var/lib/energyid-solarbank-monitor/run.sh`
+- Check log files: `tail -f /var/log/energyid-solarbank/energyid-solarbank.log`
 
 ### Network errors
 - Verify Solarbank Modbus: `ENERGYID_CONSOLE_LOGGING=true python -m energyid_monitor.battery`
@@ -343,7 +356,7 @@ grep "INFO" /var/log/energyid/energyid.log
 - Reinstall dependencies if needed
 
 ### Permission errors
-- Check log directory permissions: `ls -la /var/log/energyid/`
+- Check log directory permissions: `ls -la /var/log/energyid-solarbank/`
 - Ensure the user in systemd service file has proper permissions
 
 ## Logging Configuration
@@ -391,7 +404,7 @@ export ENERGYID_LOG_FILE=/home/user/logs/energyid.log
 python -m energyid_monitor
 ```
 
-**Default location**: `/var/log/energyid/energyid.log`
+**Default location**: `/var/log/energyid-solarbank/energyid-solarbank.log`
 
 The log directory will be created automatically if it doesn't exist.
 
@@ -418,17 +431,17 @@ When enabled, logs will appear both in the log file and on stdout (with colors f
 
 ```bash
 # View recent log entries
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 
 # View with line numbers
-tail -n 100 /var/log/energyid/energyid.log | cat -n
+tail -n 100 /var/log/energyid-solarbank/energyid-solarbank.log | cat -n
 
 # Search for specific patterns
-grep "ERROR" /var/log/energyid/energyid.log
-grep "Webhook-in response" /var/log/energyid/energyid.log
+grep "ERROR" /var/log/energyid-solarbank/energyid-solarbank.log
+grep "Webhook-in response" /var/log/energyid-solarbank/energyid-solarbank.log
 
 # View rotated/compressed logs
-zcat /var/log/energyid/energyid.log.2024-01-15.gz
+zcat /var/log/energyid-solarbank/energyid-solarbank.log.2024-01-15.gz
 ```
 
 **Note:** Log rotation is handled automatically by loguru, so you don't need to configure external log rotation tools like logrotate. However, if you prefer using logrotate for additional control, you can still set it up, but be aware that loguru's rotation will also be active.
@@ -447,7 +460,7 @@ sudo nano /etc/logrotate.d/energyid
 
 Content:
 ```
-/var/log/energyid/*.log {
+/var/log/energyid-solarbank/*.log {
     daily
     rotate 7
     compress
@@ -464,13 +477,13 @@ Content:
 
 Monitor the logs for successful webhook responses:
 ```bash
-grep "Webhook-in response" /var/log/energyid/energyid.log
+grep "Webhook-in response" /var/log/energyid-solarbank/energyid-solarbank.log
 ```
 
 ### Update the application
 
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 git pull  # if using git
 source .venv/bin/activate
 uv pip install -e .  # or pip install -e . for editable install
@@ -478,14 +491,14 @@ uv pip install -e .  # or pip install -e . for editable install
 
 If using systemd timer, restart it:
 ```bash
-sudo systemctl restart energyid.timer
+sudo systemctl restart energyid-solarbank.timer
 ```
 
 ## Security Considerations
 
 1. **Protect .env file**: 
    ```bash
-   chmod 600 /var/lib/energyid-monitor/.env
+   chmod 600 /var/lib/energyid-solarbank-monitor/.env
    ```
 
 2. **Run as non-root user**: The instructions above use a regular user account.
@@ -503,16 +516,16 @@ crontab -e  # Remove the energyid line
 
 If using systemd:
 ```bash
-sudo systemctl stop energyid.timer
-sudo systemctl disable energyid.timer
-sudo rm /etc/systemd/system/energyid.service
-sudo rm /etc/systemd/system/energyid.timer
+sudo systemctl stop energyid-solarbank.timer
+sudo systemctl disable energyid-solarbank.timer
+sudo rm /etc/systemd/system/energyid-solarbank.service
+sudo rm /etc/systemd/system/energyid-solarbank.timer
 sudo systemctl daemon-reload
 ```
 
 Remove files:
 ```bash
-sudo rm -rf /var/lib/energyid-monitor
-sudo rm -rf /var/log/energyid
+sudo rm -rf /var/lib/energyid-solarbank-monitor
+sudo rm -rf /var/log/energyid-solarbank
 sudo rm /etc/logrotate.d/energyid
 ```

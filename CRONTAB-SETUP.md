@@ -4,7 +4,7 @@ This is a simplified guide for setting up the EnergyID monitor to run every 5 mi
 
 ## Prerequisites
 
-1. Application installed at `/var/lib/energyid-monitor`
+1. Application installed at `/var/lib/energyid-solarbank-monitor`
 2. Configuration file (`.env`) properly filled out
 3. Application tested and working manually
 
@@ -23,7 +23,7 @@ If asked to choose an editor, select `nano` (easiest for beginners) or your pref
 Add this line at the end of the file:
 
 ```
-*/5 * * * * /var/lib/energyid-monitor/run.sh
+*/5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### 3. Save and exit
@@ -42,7 +42,7 @@ You should see your new line listed.
 ## Understanding the Cron Schedule
 
 ```
-*/5 * * * * /var/lib/energyid-monitor/run.sh
+*/5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 │   │ │ │ │
 │   │ │ │ └─── Day of week (0-7, both 0 and 7 are Sunday)
 │   │ │ └───── Month (1-12)
@@ -59,27 +59,27 @@ If you want different intervals:
 
 ### Every 10 minutes:
 ```
-*/10 * * * * /var/lib/energyid-monitor/run.sh
+*/10 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### Every 15 minutes:
 ```
-*/15 * * * * /var/lib/energyid-monitor/run.sh
+*/15 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### Every hour at minute 0:
 ```
-0 * * * * /var/lib/energyid-monitor/run.sh
+0 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### Every 30 minutes:
 ```
-*/30 * * * * /var/lib/energyid-monitor/run.sh
+*/30 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### Only during daylight hours (6 AM to 8 PM, every 5 minutes):
 ```
-*/5 6-20 * * * /var/lib/energyid-monitor/run.sh
+*/5 6-20 * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ## Monitoring and Troubleshooting
@@ -95,7 +95,7 @@ systemctl status crond   # RHEL/CentOS
 
 ```bash
 # Application logs
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 
 # System cron logs
 grep CRON /var/log/syslog    # Ubuntu/Debian
@@ -105,12 +105,12 @@ grep CRON /var/log/cron      # RHEL/CentOS
 ### Test the cron script manually
 
 ```bash
-/var/lib/energyid-monitor/run.sh
+/var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 Then check the log:
 ```bash
-tail /var/log/energyid/energyid.log
+tail /var/log/energyid-solarbank/energyid-solarbank.log
 ```
 
 ### Check cron execution history
@@ -131,13 +131,13 @@ systemctl status cron
 
 **Check 2**: Is the script executable?
 ```bash
-ls -l /var/lib/energyid-monitor/run.sh
+ls -l /var/lib/energyid-solarbank-monitor/run.sh
 # Should show: -rwxr-xr-x
 ```
 
 **Fix**:
 ```bash
-chmod +x /var/lib/energyid-monitor/run.sh
+chmod +x /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 **Check 3**: View crontab for typos
@@ -149,7 +149,7 @@ crontab -l
 
 Check the application log:
 ```bash
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 ```
 
 Common causes:
@@ -160,12 +160,12 @@ Common causes:
 
 ### Issue: Can't find output
 
-Logs go to: `/var/log/energyid/energyid.log`
+Logs go to: `/var/log/energyid-solarbank/energyid-solarbank.log`
 
 If this directory doesn't exist:
 ```bash
-sudo mkdir -p /var/log/energyid
-sudo chown $USER:$USER /var/log/energyid
+sudo mkdir -p /var/log/energyid-solarbank
+sudo chown $USER:$USER /var/log/energyid-solarbank
 ```
 
 ### Issue: Database errors
@@ -175,10 +175,10 @@ The application uses SQLite to cache authentication tokens in `data/token.db`.
 If you see database-related errors:
 ```bash
 # Check if data directory exists and is writable
-ls -ld /var/lib/energyid-monitor/data
+ls -ld /var/lib/energyid-solarbank-monitor/data
 
 # If needed, ensure proper permissions
-chmod 755 /var/lib/energyid-monitor/data
+chmod 755 /var/lib/energyid-solarbank-monitor/data
 ```
 
 The database and directory are created automatically on first run.
@@ -205,7 +205,7 @@ crontab -e
 
 Comment out the line by adding `#` at the beginning:
 ```
-# */5 * * * * /var/lib/energyid-monitor/run.sh
+# */5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ### Permanently remove
@@ -234,7 +234,7 @@ Add at the top:
 PATH=/usr/local/bin:/usr/bin:/bin
 SHELL=/bin/bash
 
-*/5 * * * * /var/lib/energyid-monitor/run.sh
+*/5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 ## Verification Checklist
@@ -242,10 +242,10 @@ SHELL=/bin/bash
 After setup, verify:
 
 - [ ] Crontab entry is correct: `crontab -l`
-- [ ] Script is executable: `ls -l /var/lib/energyid-monitor/run.sh`
-- [ ] Log directory exists: `ls -ld /var/log/energyid/`
-- [ ] Manual run works: `/var/lib/energyid-monitor/run.sh`
-- [ ] Wait 5 minutes and check logs: `tail /var/log/energyid/energyid.log`
+- [ ] Script is executable: `ls -l /var/lib/energyid-solarbank-monitor/run.sh`
+- [ ] Log directory exists: `ls -ld /var/log/energyid-solarbank/`
+- [ ] Manual run works: `/var/lib/energyid-solarbank-monitor/run.sh`
+- [ ] Wait 5 minutes and check logs: `tail /var/log/energyid-solarbank/energyid-solarbank.log`
 - [ ] Verify new entries appear every 5 minutes
 
 ## Quick Reference Card
@@ -261,10 +261,10 @@ crontab -l
 crontab -r
 
 # Test manual run
-/var/lib/energyid-monitor/run.sh
+/var/lib/energyid-solarbank-monitor/run.sh
 
 # View logs
-tail -f /var/log/energyid/energyid.log
+tail -f /var/log/energyid-solarbank/energyid-solarbank.log
 
 # Check cron service
 systemctl status cron
