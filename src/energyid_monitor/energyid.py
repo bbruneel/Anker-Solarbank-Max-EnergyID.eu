@@ -250,8 +250,11 @@ async def run_energyid_flow() -> None:
     snapshot = await battery.fetch_snapshot(battery_config)
     logger.info("Solarbank snapshot:\n{}", battery.format_snapshot(snapshot))
 
+    webhook_keys = battery.load_energyid_webhook_keys()
+    logger.info(f"EnergyID webhook keys: {', '.join(webhook_keys)}")
+
     timestamp = int(time.time())
-    payload = battery.to_energyid_payload(snapshot, timestamp)
+    payload = battery.to_energyid_payload(snapshot, timestamp, webhook_keys=webhook_keys)
     logger.info(f"EnergyID payload: {payload}")
 
     async with aiohttp.ClientSession() as session:
