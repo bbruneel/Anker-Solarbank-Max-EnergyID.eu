@@ -22,8 +22,10 @@ DEFAULT_LOG_LEVEL = "INFO"
 LOG_LEVEL_ENV_VAR = "ENERGYID_LOG_LEVEL"
 LOG_FILE_ENV_VAR = "ENERGYID_LOG_FILE"
 CONSOLE_LOGGING_ENV_VAR = "ENERGYID_CONSOLE_LOGGING"
-DEFAULT_LOG_FILE = "/var/log/energyid/energyid.log"
-FALLBACK_LOG_FILE = Path.home() / ".local" / "log" / "energyid" / "energyid.log"
+DEFAULT_LOG_FILE = "/var/log/energyid-solarbank/energyid-solarbank.log"
+FALLBACK_LOG_FILE = (
+    Path.home() / ".local" / "log" / "energyid-solarbank" / "energyid-solarbank.log"
+)
 LOG_RETENTION_DAYS = 30
 DEFAULT_CONSOLE_LOGGING = "false"
 

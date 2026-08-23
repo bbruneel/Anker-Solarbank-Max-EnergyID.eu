@@ -12,6 +12,16 @@ A small Python app that:
 
 It is intentionally **not** a Home Assistant integration. The sibling project is [APsystems-EZ1-energyid.eu](https://github.com/bbruneel/APsystems-EZ1-energyid.eu) — follow the same layout, logging, token cache, deploy scripts, and CI style.
 
+## Co-installation defaults (avoid clashes)
+
+Both repos historically shared generic paths (`/var/lib/energyid-monitor`, `/var/log/energyid/energyid.log`). **This project uses Solarbank-specific defaults** so it can run beside the APsystems monitor on one machine:
+
+- Install dir: `/var/lib/energyid-solarbank-monitor`
+- Log file: `/var/log/energyid-solarbank/energyid-solarbank.log`
+- systemd: `energyid-solarbank.service` / `energyid-solarbank.timer`
+
+When adding new file paths, cron jobs, or systemd units, **keep the `solarbank` suffix** (or another device-specific name). Never reuse the sibling’s generic `energyid` paths. See `DEPLOYMENT.md` for the full comparison table.
+
 ## Do not add
 
 - Home Assistant as a dependency

@@ -28,14 +28,14 @@ cd energyid-monitor
 ### 3. Configure your credentials
 ```bash
 # Edit the config file (adjust path if you used custom install directory)
-nano /var/lib/energyid-monitor/.env
+nano /var/lib/energyid-solarbank-monitor/.env
 ```
 
 Fill in your EnergyID credentials and Solarbank IP address.
 
 ### 4. Test the installation
 ```bash
-cd /var/lib/energyid-monitor
+cd /var/lib/energyid-solarbank-monitor
 source .venv/bin/activate
 python -m energyid_monitor
 ```
@@ -52,7 +52,7 @@ crontab -e
 
 Add this line to run every 5 minutes:
 ```
-*/5 * * * * /var/lib/energyid-monitor/run.sh
+*/5 * * * * /var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 For more detailed instructions, see `DEPLOYMENT.md`.
@@ -239,7 +239,7 @@ After distributing, recipients may need help with:
 Refer them to:
 - `README.md` for project overview
 - `DEPLOYMENT.md` for detailed instructions
-- Log files at `/var/log/energyid/energyid.log`
+- Log files at `/var/log/energyid-solarbank/energyid-solarbank.log`
 
 ## Quick Verification Commands
 
@@ -259,10 +259,10 @@ curl -I https://hooks.energyid.eu
 crontab -l
 
 # View recent logs
-tail -20 /var/log/energyid/energyid.log
+tail -20 /var/log/energyid-solarbank/energyid-solarbank.log
 
 # Manual test run
-cd /var/lib/energyid-monitor && source .venv/bin/activate && python -m energyid_monitor
+cd /var/lib/energyid-solarbank-monitor && source .venv/bin/activate && python -m energyid_monitor
 ```
 
 ## Version Management
@@ -297,7 +297,7 @@ To update an existing installation:
 1. Create new distribution package
 2. On target system, backup current `.env`:
    ```bash
-   cp /var/lib/energyid-monitor/.env ~/energyid-backup.env
+   cp /var/lib/energyid-solarbank-monitor/.env ~/energyid-backup.env
    ```
 3. Stop cron/systemd timer
 4. Deploy new version

@@ -73,7 +73,7 @@ cd energyid-monitor
 ./scripts/deploy.sh --help
 ```
 
-Then configure your credentials in the `.env` file (default: `/var/lib/energyid-monitor/.env`) and set up scheduled runs.
+Then configure your credentials in the `.env` file (default: `/var/lib/energyid-solarbank-monitor/.env`) and set up scheduled runs.
 
 ### EnergyID webhook setup
 
@@ -121,7 +121,7 @@ curl -w "%{response_code}" -X POST "https://hooks.energyid.eu/webhook-in" \
 Once everything is set up:
 
 ```bash
-/var/lib/energyid-monitor/run.sh
+/var/lib/energyid-solarbank-monitor/run.sh
 ```
 
 From a development checkout:
@@ -168,11 +168,13 @@ The application uses loguru with daily rotation, gzip compression, and 30-day re
 
 ```bash
 ENERGYID_LOG_LEVEL=DEBUG
-ENERGYID_LOG_FILE=/path/to/your/logs/energyid.log
+ENERGYID_LOG_FILE=/var/log/energyid-solarbank/energyid-solarbank.log
 ENERGYID_CONSOLE_LOGGING=true
 ```
 
-If the configured log directory is not writable, logs fall back to `~/.local/log/energyid/energyid.log`.
+Default log file: `/var/log/energyid-solarbank/energyid-solarbank.log`. If the configured log directory is not writable, logs fall back to `~/.local/log/energyid-solarbank/energyid-solarbank.log`.
+
+If this host also runs [APsystems-EZ1-energyid.eu](https://github.com/bbruneel/APsystems-EZ1-energyid.eu), keep separate install and log paths — see `DEPLOYMENT.md`.
 
 ## Releases and versioning
 
