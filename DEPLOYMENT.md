@@ -151,6 +151,7 @@ Fill in your actual values:
 - `ENERGYID_YOUR_DEVICE_NAME` - Your device name
 - `ENERGYID_HELLO_URL` - EnergyID hello endpoint URL
 - `ENERGYID_WEBHOOK_URL` - EnergyID webhook endpoint URL
+- `ENERGYID_WEBHOOK_KEYS` - Comma-separated webhook keys to send (default: all supported keys; see `env.example`)
 - `SOLARBANK_IP_ADDRESS` - Your Solarbank's LAN IP address
 - `SOLARBANK_MODBUS_PORT` - Modbus TCP port (default `502`)
 - `SOLARBANK_DEVICE_ID` - Modbus unit/device id (default `1`)

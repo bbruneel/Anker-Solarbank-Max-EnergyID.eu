@@ -36,6 +36,8 @@ Readings are mapped to EnergyID [predefined webhook keys](https://help.energyid.
 | `pwr` | Grid offtake power | kW | Grid import power |
 | `pwr-i` | Grid injection power | kW | Grid export power |
 
+Choose which keys are posted with `ENERGYID_WEBHOOK_KEYS` in `.env` (comma-separated). By default all keys above are sent. Example for battery metrics only: `ENERGYID_WEBHOOK_KEYS=bat,bat-i,bat-soc`.
+
 ## Quick start
 
 ### Test the battery connection first

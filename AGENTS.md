@@ -66,6 +66,8 @@ Docs: https://help.energyid.eu/en/developer/incoming-webhooks/
 | `pwr` | gauge | kW | `grid_import_power / 1000` |
 | `pwr-i` | gauge | kW | `grid_export_power / 1000` |
 
+Subset selection: `ENERGYID_WEBHOOK_KEYS` (comma-separated) controls which keys above are included in the webhook payload. Default: all keys.
+
 Webhook rules to preserve:
 
 - Pass `authorization` and `x-twin-id` headers **exactly** as `/hello` returned them

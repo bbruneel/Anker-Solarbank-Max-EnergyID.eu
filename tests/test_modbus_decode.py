@@ -5,6 +5,7 @@ import pytest
 from energyid_monitor.battery import (
     _post_process,
     load_device_yaml,
+    load_energyid_webhook_keys,
     to_energyid_payload,
 )
 from energyid_monitor.modbus_client import (
@@ -116,6 +117,47 @@ def test_energyid_payload_rejects_incomplete_snapshot() -> None:
             },
             timestamp=1733835004,
         )
+
+
+def test_energyid_payload_battery_keys_only() -> None:
+    snapshot = {
+        "cumulative_charge_energy": 5.4,
+        "cumulative_discharge_energy": 2.7,
+        "battery_soc": 69,
+    }
+    payload = to_energyid_payload(
+        snapshot,
+        timestamp=1733835004,
+        webhook_keys=("bat", "bat-i", "bat-soc"),
+    )
+    assert payload == {
+        "ts": 1733835004,
+        "bat": 5.4,
+        "bat-i": 2.7,
+        "bat-soc": 69,
+    }
+
+
+def test_energyid_payload_rejects_missing_selected_key() -> None:
+    with pytest.raises(RuntimeError, match="Incomplete Solarbank snapshot"):
+        to_energyid_payload(
+            {"battery_soc": 69},
+            timestamp=1733835004,
+            webhook_keys=("bat", "bat-soc"),
+        )
+
+
+def test_load_energyid_webhook_keys_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENERGYID_WEBHOOK_KEYS", " bat , bat-i , bat-soc ")
+    assert load_energyid_webhook_keys() == ("bat", "bat-i", "bat-soc")
+
+
+def test_load_energyid_webhook_keys_rejects_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ENERGYID_WEBHOOK_KEYS", "bat,unknown")
+    with pytest.raises(ValueError, match="Unknown ENERGYID_WEBHOOK_KEYS"):
+        load_energyid_webhook_keys()
 
 
 def test_bundled_yaml_loads() -> None:
