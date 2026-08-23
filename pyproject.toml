@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-energyid-monitor = "energyid_monitor.__main__:main"
+energyid-solarbank-monitor = "energyid_monitor.__main__:main"
 
 [tool.setuptools]
 packages = { find = { where = ["src"], exclude = ["dbscripts*"] } }

@@ -74,7 +74,7 @@ The script will automatically:
    ```
    Or, if installed as a package:
    ```bash
-   energyid-monitor
+   energyid-solarbank-monitor
    ```
 
 3. **Set up automatic execution** (see sections below for crontab or systemd timer options)
@@ -137,7 +137,7 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-This installs the package in editable mode, allowing it to be run as `python -m energyid_monitor` or `energyid-monitor`.
+This installs the package in editable mode, allowing it to be run as `python -m energyid_monitor` or `energyid-solarbank-monitor`.
 
 Using pip:
 ```bash
@@ -147,7 +147,7 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-This installs the package in editable mode from `pyproject.toml`, which includes all dependencies and allows running as `python -m energyid_monitor` or `energyid-monitor`.
+This installs the package in editable mode from `pyproject.toml`, which includes all dependencies and allows running as `python -m energyid_monitor` or `energyid-solarbank-monitor`.
 
 ### 5. Configure environment variables
 
@@ -184,7 +184,7 @@ python -m energyid_monitor
 
 Or, if installed as a package:
 ```bash
-energyid-monitor
+energyid-solarbank-monitor
 ```
 
 You should see structured log output showing:

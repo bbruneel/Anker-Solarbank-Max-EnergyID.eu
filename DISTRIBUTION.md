@@ -8,9 +8,9 @@ If you received this application package, follow these simple steps:
 
 ### 1. Extract the archive (if compressed)
 ```bash
-# This will create a folder called 'energyid-monitor' with all files inside
-tar -xzf energyid-monitor.tar.gz
-cd energyid-monitor
+# This will create a folder called 'energyid-solarbank-monitor' with all files inside
+tar -xzf energyid-solarbank-monitor.tar.gz
+cd energyid-solarbank-monitor
 ```
 
 ### 2. Run the automated deployment script
@@ -42,7 +42,7 @@ python -m energyid_monitor
 
 Or, if installed as a package:
 ```bash
-energyid-monitor
+energyid-solarbank-monitor
 ```
 
 ### 5. Set up crontab
@@ -85,7 +85,7 @@ This project includes a GitHub Actions workflow that automatically creates distr
      - Version as release name
 
 3. **Review and publish:**
-   - Go to the [GitHub Releases page](https://github.com/yourusername/energyid-monitor/releases)
+   - Go to the [GitHub Releases page](https://github.com/yourusername/energyid-solarbank-monitor/releases)
    - Review the draft release
    - Edit release notes if needed
    - Publish the release when ready
@@ -116,17 +116,17 @@ chmod +x scripts/package.sh
 ./scripts/package.sh 1.0.0
 ```
 
-This will create `energyid-monitor-v1.0.0.tar.gz` with:
+This will create `energyid-solarbank-monitor-v1.0.0.tar.gz` with:
 - All required files included
 - Sensitive files automatically excluded (.env, .venv, etc.)
-- Proper folder structure (files prefixed with 'energyid-monitor/')
+- Proper folder structure (files prefixed with 'energyid-solarbank-monitor/')
 - Version number in the filename
 - Automatic verification and detailed output
 
 **Manual alternative (if package.sh is not available):**
 ```bash
-tar -czf energyid-monitor.tar.gz \
-  --transform 's,^,energyid-monitor/,' \
+tar -czf energyid-solarbank-monitor.tar.gz \
+  --transform 's,^,energyid-solarbank-monitor/,' \
   --exclude='.venv' --exclude='data' --exclude='__pycache__' \
   --exclude='.pytest_cache' --exclude='*.pyc' --exclude='.env' \
   --exclude='.git' --exclude='uv.lock' --exclude='dist' \
@@ -134,7 +134,7 @@ tar -czf energyid-monitor.tar.gz \
 ```
 
 Transfer the created package to the target system via:
-- SCP: `scp energyid-monitor.tar.gz user@target-host:/tmp/`
+- SCP: `scp energyid-solarbank-monitor.tar.gz user@target-host:/tmp/`
 - USB drive
 - Network share
 - Email (if small enough)
@@ -150,12 +150,12 @@ git add .
 git commit -m "Initial commit"
 
 # Push to a repository (GitHub, GitLab, etc.)
-git remote add origin https://github.com/yourusername/energyid-monitor.git
+git remote add origin https://github.com/yourusername/energyid-solarbank-monitor.git
 git push -u origin main
 
 # On target system
-git clone https://github.com/yourusername/energyid-monitor.git
-cd energyid-monitor
+git clone https://github.com/yourusername/energyid-solarbank-monitor.git
+cd energyid-solarbank-monitor
 ./scripts/deploy.sh
 ```
 
@@ -165,10 +165,10 @@ Transfer files directly without creating an archive:
 
 ```bash
 # From source system
-scp -r /home/bram/cursor-projects/AP-EasyPower-EnergieID user@target-host:/tmp/energyid-monitor
+scp -r /home/bram/cursor-projects/AP-EasyPower-EnergieID user@target-host:/tmp/energyid-solarbank-monitor
 
 # On target system
-cd /tmp/energyid-monitor
+cd /tmp/energyid-solarbank-monitor
 ./scripts/deploy.sh
 ```
 

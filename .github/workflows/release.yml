@@ -95,6 +95,6 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
           draft: true
           files: |
-            dist/energyid-monitor-v${{ steps.version.outputs.version }}.tar.gz
+            dist/energyid-solarbank-monitor-v${{ steps.version.outputs.version }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

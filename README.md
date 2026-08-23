@@ -59,9 +59,9 @@ You should see model `A17E2`, firmware, SoC, live power, and lifetime energy tot
 Download the latest release from GitHub Releases and extract the distribution package.
 
 ```bash
-# This will create a folder called 'energyid-monitor' with all files inside
-tar -xzf energyid-monitor-v1.0.0.tar.gz
-cd energyid-monitor
+# This will create a folder called 'energyid-solarbank-monitor' with all files inside
+tar -xzf energyid-solarbank-monitor-v1.0.0.tar.gz
+cd energyid-solarbank-monitor
 
 # Use default directories
 ./scripts/deploy.sh
