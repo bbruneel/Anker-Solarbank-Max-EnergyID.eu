@@ -14,7 +14,10 @@ It is intentionally **not** a Home Assistant integration. The sibling project is
 
 ## Co-installation defaults (avoid clashes)
 
-Both repos historically shared generic paths (`/var/lib/energyid-monitor`, `/var/log/energyid/energyid.log`). **This project uses Solarbank-specific defaults** so it can run beside the APsystems monitor on one machine:
+Both repos historically shared generic paths (`/var/lib/energyid-monitor`, `/var/log/energyid/energyid.log`) and a generic CLI/tarball name (`energyid-monitor`). **This project uses Solarbank-specific defaults** so it can run beside the APsystems monitor on one machine:
+
+- CLI command: `energyid-solarbank-monitor`
+- Release tarball: `energyid-solarbank-monitor-v*.tar.gz` (extracts to `energyid-solarbank-monitor/`)
 
 - Install dir: `/var/lib/energyid-solarbank-monitor`
 - Log file: `/var/log/energyid-solarbank/energyid-solarbank.log`

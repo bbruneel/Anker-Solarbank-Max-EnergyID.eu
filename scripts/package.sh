@@ -27,7 +27,7 @@ fi
 # Read the actual version from pyproject.toml to ensure consistency
 VERSION=$(grep -E '^version = ' "$PROJECT_ROOT/pyproject.toml" | sed -E 's/^version = "([^"]+)"/\1/')
 
-PACKAGE_NAME="energyid-monitor-v${VERSION}.tar.gz"
+PACKAGE_NAME="energyid-solarbank-monitor-v${VERSION}.tar.gz"
 
 # Create dist directory if it doesn't exist
 DIST_DIR="$PROJECT_ROOT/dist"
@@ -37,7 +37,7 @@ PACKAGE_PATH="$DIST_DIR/$PACKAGE_NAME"
 
 echo ""
 echo "========================================"
-echo "EnergyID Monitor - Distribution Packager"
+echo "EnergyID Solarbank Monitor - Distribution Packager"
 echo "========================================"
 echo ""
 echo "Creating package: $PACKAGE_NAME"
@@ -67,7 +67,7 @@ tar -czf "$PACKAGE_PATH" \
   --exclude='*.tar.gz' \
   --exclude='dist' \
   --exclude='tests' \
-  --transform 's,^,energyid-monitor/,' \
+  --transform 's,^,energyid-solarbank-monitor/,' \
   src/energyid_monitor \
   dbscripts \
   pyproject.toml \
@@ -93,7 +93,7 @@ if [ $? -eq 0 ]; then
     echo "Next steps:"
     echo "1. Transfer $PACKAGE_NAME to target system"
     echo "2. Extract: tar -xzf $PACKAGE_NAME"
-    echo "3. Run: cd energyid-monitor && ./scripts/deploy.sh"
+    echo "3. Run: cd energyid-solarbank-monitor && ./scripts/deploy.sh"
     echo ""
     echo "See DISTRIBUTION.md for more transfer options."
 else

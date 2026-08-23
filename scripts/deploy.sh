@@ -178,7 +178,7 @@ else
     pip install -e .
 fi
 
-echo "✓ Package installed (energyid-monitor command available)"
+echo "✓ Package installed (energyid-solarbank-monitor command available)"
 
 # Create .env file if it doesn't exist
 echo ""
