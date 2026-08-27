@@ -385,39 +385,61 @@ async def run_energyid_flow(
         )
 
     sync_state = await reading_store.get_sync_state(db_path)
-    interval = effective_upload_interval(
-        env_interval,
-        sync_state["hello_upload_interval_seconds"],
-        override=override,
-    )
-    logger.info(
-        "Effective upload interval={}s " "(env={}s, hello_cached={}, override={})",
-        interval,
-        env_interval,
-        sync_state["hello_upload_interval_seconds"],
-        override,
-    )
-
-    if _should_skip_upload(sync_state["last_successful_upload_at"], interval):
-        elapsed = timestamp - int(sync_state["last_successful_upload_at"] or 0)
-        logger.info(
-            "Skipping webhook POST: last success {}s ago "
-            "(effective interval {}s); reading retained as pending",
-            elapsed,
-            interval,
-        )
-        return
-
-    pending = await reading_store.list_pending(db_path)
-    if not pending:
-        logger.info("No pending readings to upload")
-        return
-
-    batch = [row["payload"] for row in pending]
-    reading_ids = [row["id"] for row in pending]
-    logger.info(f"Uploading {len(batch)} pending reading(s) as one webhook batch")
 
     async with aiohttp.ClientSession() as session:
+        hello_cached = sync_state["hello_upload_interval_seconds"]
+        if not override and hello_cached is None:
+            # Token-cache hits skip /hello, so after upgrade (or a cold sync_state)
+            # we may not know the plan limit yet. Refresh once before gating.
+            try:
+                logger.info(
+                    "No cached hello uploadInterval; calling /hello before "
+                    "rate-limit gating"
+                )
+                await call_hello(session, config, db_path)
+                sync_state = await reading_store.get_sync_state(db_path)
+                hello_cached = sync_state["hello_upload_interval_seconds"]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to refresh hello uploadInterval before gating "
+                    "({!r}); falling back to ENERGYID_UPLOAD_INTERVAL_SECONDS={} "
+                    "(may hit HTTP 429 if that undercuts the plan)",
+                    exc,
+                    env_interval,
+                )
+
+        interval = effective_upload_interval(
+            env_interval,
+            hello_cached,
+            override=override,
+        )
+        logger.info(
+            "Effective upload interval={}s (env={}s, hello_cached={}, override={})",
+            interval,
+            env_interval,
+            hello_cached,
+            override,
+        )
+
+        if _should_skip_upload(sync_state["last_successful_upload_at"], interval):
+            elapsed = timestamp - int(sync_state["last_successful_upload_at"] or 0)
+            logger.info(
+                "Skipping webhook POST: last success {}s ago "
+                "(effective interval {}s); reading retained as pending",
+                elapsed,
+                interval,
+            )
+            return
+
+        pending = await reading_store.list_pending(db_path)
+        if not pending:
+            logger.info("No pending readings to upload")
+            return
+
+        batch = [row["payload"] for row in pending]
+        reading_ids = [row["id"] for row in pending]
+        logger.info(f"Uploading {len(batch)} pending reading(s) as one webhook batch")
+
         webhook_response = await _post_with_token_retry(
             session, config, batch, db_path=db_path
         )

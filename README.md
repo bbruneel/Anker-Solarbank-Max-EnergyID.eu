@@ -161,7 +161,7 @@ Each successful Modbus snapshot is always stored locally before upload. If Energ
 | `ENERGYID_UPLOAD_INTERVAL_OVERRIDE` | `false` | If `true`, ignore hello’s `uploadInterval` |
 | `ENERGYID_READING_RETENTION_SECONDS` | `604800` | Drop readings whose `ts` is older than now − this |
 
-Effective upload interval (when override is false): `max(ENERGYID_UPLOAD_INTERVAL_SECONDS, last hello uploadInterval)`. Hello’s interval is cached in `sync_state` whenever `/hello` runs.
+Effective upload interval (when override is false): `max(ENERGYID_UPLOAD_INTERVAL_SECONDS, last hello uploadInterval)`. Hello’s interval is cached in `sync_state` whenever `/hello` runs. If that cache is empty and override is false, the app calls `/hello` once before rate-limit gating; if that call fails it falls back to the env interval (which may be stricter than the plan and can yield HTTP 429 until hello succeeds).
 
 View tokens / pending readings:
 

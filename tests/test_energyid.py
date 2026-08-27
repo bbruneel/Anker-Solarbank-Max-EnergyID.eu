@@ -8,6 +8,7 @@ import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
 
 from energyid_monitor import reading_store, token_store
@@ -520,3 +521,148 @@ async def test_run_energyid_flow_uses_stricter_hello_interval(
 
     mock_post.assert_not_called()
     assert len(await reading_store.list_pending(db_path)) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_energyid_flow_fetches_hello_when_interval_uncached(
+    mock_config: ProvisioningConfig, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing hello cache + override false => /hello before gating; use plan limit."""
+    db_path = tmp_path / "token.db"
+    await token_store.ensure_db(db_path)
+    now = int(time.time())
+    await reading_store.set_last_successful_upload(now - 400, db_path)
+
+    monkeypatch.setenv("ENERGYID_UPLOAD_INTERVAL_SECONDS", "300")
+    monkeypatch.setenv("ENERGYID_UPLOAD_INTERVAL_OVERRIDE", "false")
+    monkeypatch.setenv("ENERGYID_READING_RETENTION_SECONDS", "604800")
+
+    async def _hello_side_effect(session, config, path):
+        await reading_store.set_hello_upload_interval(900, path)
+        return {
+            "bearer_token": "Bearer x",
+            "twin_id": "twin",
+            "exp": now + 7200,
+            "webhook_url": mock_config["webhook_url"],
+            "upload_interval_seconds": 900,
+        }
+
+    with (
+        patch(
+            "energyid_monitor.energyid.battery.load_battery_config",
+            return_value={"ip": "x"},
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.fetch_snapshot",
+            new_callable=AsyncMock,
+            return_value={
+                "pv_total_generation": 1.0,
+                "cumulative_charge_energy": 1.0,
+                "cumulative_discharge_energy": 1.0,
+                "battery_soc": 1.0,
+                "grid_import_power": 0.0,
+                "grid_export_power": 0.0,
+            },
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.load_energyid_webhook_keys",
+            return_value=["pv"],
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.to_energyid_payload",
+            return_value={"ts": now, "pv": 1.0},
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.format_snapshot",
+            return_value="snap",
+        ),
+        patch(
+            "energyid_monitor.energyid.load_provisioning_config",
+            return_value=mock_config,
+        ),
+        patch(
+            "energyid_monitor.energyid.call_hello",
+            new_callable=AsyncMock,
+            side_effect=_hello_side_effect,
+        ) as mock_hello,
+        patch(
+            "energyid_monitor.energyid._post_with_token_retry",
+            new_callable=AsyncMock,
+        ) as mock_post,
+    ):
+        await run_energyid_flow(db_path)
+
+    mock_hello.assert_called_once()
+    mock_post.assert_not_called()
+    state = await reading_store.get_sync_state(db_path)
+    assert state["hello_upload_interval_seconds"] == 900
+    assert len(await reading_store.list_pending(db_path)) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_energyid_flow_falls_back_when_hello_refresh_fails(
+    mock_config: ProvisioningConfig, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the pre-gating /hello fails, continue with env interval and still upload."""
+    db_path = tmp_path / "token.db"
+    await token_store.ensure_db(db_path)
+    now = int(time.time())
+
+    monkeypatch.setenv("ENERGYID_UPLOAD_INTERVAL_SECONDS", "60")
+    monkeypatch.setenv("ENERGYID_UPLOAD_INTERVAL_OVERRIDE", "false")
+    monkeypatch.setenv("ENERGYID_READING_RETENTION_SECONDS", "604800")
+
+    with (
+        patch(
+            "energyid_monitor.energyid.battery.load_battery_config",
+            return_value={"ip": "x"},
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.fetch_snapshot",
+            new_callable=AsyncMock,
+            return_value={
+                "pv_total_generation": 1.0,
+                "cumulative_charge_energy": 1.0,
+                "cumulative_discharge_energy": 1.0,
+                "battery_soc": 1.0,
+                "grid_import_power": 0.0,
+                "grid_export_power": 0.0,
+            },
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.load_energyid_webhook_keys",
+            return_value=["pv"],
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.to_energyid_payload",
+            return_value={"ts": now, "pv": 1.0},
+        ),
+        patch(
+            "energyid_monitor.energyid.battery.format_snapshot",
+            return_value="snap",
+        ),
+        patch(
+            "energyid_monitor.energyid.load_provisioning_config",
+            return_value=mock_config,
+        ),
+        patch(
+            "energyid_monitor.energyid.call_hello",
+            new_callable=AsyncMock,
+            side_effect=aiohttp.ClientError("offline"),
+        ) as mock_hello,
+        patch(
+            "energyid_monitor.energyid._post_with_token_retry",
+            new_callable=AsyncMock,
+            return_value={"ok": True},
+        ) as mock_post,
+    ):
+        await run_energyid_flow(db_path)
+
+    mock_hello.assert_called_once()
+    mock_post.assert_called_once()
+    assert mock_post.call_args.args[2] == [{"ts": now, "pv": 1.0}]
+    pending = await reading_store.list_pending(db_path)
+    assert pending == []
+    state = await reading_store.get_sync_state(db_path)
+    assert state["hello_upload_interval_seconds"] is None
+    assert state["last_successful_upload_at"] is not None

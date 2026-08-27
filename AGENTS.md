@@ -91,6 +91,7 @@ Webhook rules to preserve:
 - Cache tokens in SQLite with a 1-hour expiry buffer
 - Always enqueue each Modbus snapshot; flush all pending rows as one JSON array POST
 - Do not POST more often than the effective upload interval: `max(ENERGYID_UPLOAD_INTERVAL_SECONDS, cached hello uploadInterval)`, or env only when `ENERGYID_UPLOAD_INTERVAL_OVERRIDE=true`
+- When override is false and hello’s interval is not yet cached, call `/hello` once before gating; if that fails, fall back to the env interval (may hit 429)
 - Keep readings until `ENERGYID_READING_RETENTION_SECONDS` (default 7 days); mark `sent_at` on success instead of deleting
 - On 429, leave rows pending and log `Retry-After`
 
