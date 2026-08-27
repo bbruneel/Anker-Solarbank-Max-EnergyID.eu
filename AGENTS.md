@@ -8,7 +8,7 @@ A small Python app that:
 
 1. Reads an **Anker SOLIX Solarbank Max AC** over **local Modbus TCP** (default `192.168.50.100:502`).
 2. Maps those registers to EnergyID predefined webhook keys.
-3. POSTs one JSON object to EnergyID incoming webhooks.
+3. Queues the payload in SQLite and POSTs pending readings to EnergyID as one JSON object or batch array.
 
 It is intentionally **not** a Home Assistant integration. The sibling project is [APsystems-EZ1-energyid.eu](https://github.com/bbruneel/APsystems-EZ1-energyid.eu) — follow the same layout, logging, token cache, deploy scripts, and CI style.
 
@@ -40,11 +40,12 @@ src/energyid_monitor/
   __main__.py                    python -m energyid_monitor
   battery.py                     env + YAML + snapshot + EnergyID payload mapping
   modbus_client.py               pymodbus 3.x async TCP client + decode helpers
-  energyid.py                    /hello, token cache, webhook POST
+  energyid.py                    /hello, token cache, queue flush, webhook POST
   token_store.py                 SQLite token cache
+  reading_store.py               SQLite reading queue + sync_state
   logging_config.py              loguru setup, token masking
   devices/solarbank_max_ac.yaml  register map (from official HA integration)
-dbscripts/                       SQLite migrations
+dbscripts/                       SQLite migrations (tokens + readings queue)
 ```
 
 Cron/systemd runs `python -m energyid_monitor` as a **one-shot** every few minutes. Do not turn it into a long-running daemon unless asked.
@@ -88,7 +89,11 @@ Webhook rules to preserve:
 - On 401, call `/hello` again and retry once
 - If `/hello` returns `claimCode` / `claimUrl`, fail with a clear “claim this device” message
 - Cache tokens in SQLite with a 1-hour expiry buffer
-- Do not send more often than `webhookPolicy.uploadInterval`
+- Always enqueue each Modbus snapshot; flush all pending rows as one JSON array POST
+- Do not POST more often than the effective upload interval: `max(ENERGYID_UPLOAD_INTERVAL_SECONDS, cached hello uploadInterval)`, or env only when `ENERGYID_UPLOAD_INTERVAL_OVERRIDE=true`
+- When override is false and hello’s interval is not yet cached, call `/hello` once before gating; if that fails, fall back to the env interval (may hit 429)
+- Keep readings until `ENERGYID_READING_RETENTION_SECONDS` (default 7 days); mark `sent_at` on success instead of deleting
+- On 429, leave rows pending and log `Retry-After`
 
 ## Commands
 
@@ -113,6 +118,6 @@ Python: **3.11+** (local `.python-version` is 3.12). Package manager: **uv**.
 - Match the APsystems repo: `src/` layout, `env.example`, `loguru`, `aiosqlite`, deploy/package/version scripts
 - Keep functions typed; prefer small modules over a HA-style coordinator
 - Never log raw bearer tokens (`logging_config.mask_token`)
-- Decode/register tests belong in `tests/test_modbus_decode.py`; token cache tests in `tests/test_token_store.py`
+- Decode/register tests belong in `tests/test_modbus_decode.py`; token cache tests in `tests/test_token_store.py`; reading queue tests in `tests/test_reading_store.py`
 - Do not hit the real battery or EnergyID from unit tests
 - When adding registers, update the YAML, the EnergyID mapping (if a predefined key exists), tests, README, and this file
