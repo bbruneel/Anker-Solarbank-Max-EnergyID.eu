@@ -68,9 +68,7 @@ async def test_mark_sent_removes_from_pending_but_keeps_row(db_path: str) -> Non
     assert [row["id"] for row in pending] == [id2]
 
     async with aiosqlite.connect(db_path) as conn:
-        cursor = await conn.execute(
-            "SELECT id, sent_at FROM readings ORDER BY id"
-        )
+        cursor = await conn.execute("SELECT id, sent_at FROM readings ORDER BY id")
         rows = await cursor.fetchall()
         await cursor.close()
 

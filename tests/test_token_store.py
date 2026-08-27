@@ -208,7 +208,7 @@ async def test_get_or_refresh_fetches_new_when_expired(
         }
 
         result = await get_or_refresh_token(mock_session, mock_config, in_memory_db)
-        mock_hello.assert_called_once_with(mock_session, mock_config)
+        mock_hello.assert_called_once_with(mock_session, mock_config, in_memory_db)
         assert result["bearer_token"] == "new_bearer"
         assert result["twin_id"] == "new_twin"
         assert result["exp"] == new_exp

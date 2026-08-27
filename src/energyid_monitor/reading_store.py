@@ -70,14 +70,12 @@ async def list_pending(
 
     async with aiosqlite.connect(db_path_str, uri=is_uri) as conn:
         conn.row_factory = aiosqlite.Row
-        cursor = await conn.execute(
-            """
+        cursor = await conn.execute("""
             SELECT id, ts, payload_json, created_at, sent_at
             FROM readings
             WHERE sent_at IS NULL
             ORDER BY ts ASC, id ASC
-            """
-        )
+            """)
         rows = await cursor.fetchall()
         await cursor.close()
 
@@ -156,13 +154,11 @@ async def get_sync_state(db_path: str | Path = DEFAULT_DB_PATH) -> SyncState:
 
     async with aiosqlite.connect(db_path_str, uri=is_uri) as conn:
         conn.row_factory = aiosqlite.Row
-        cursor = await conn.execute(
-            """
+        cursor = await conn.execute("""
             SELECT last_successful_upload_at, hello_upload_interval_seconds, updated_at
             FROM sync_state
             WHERE id = 1
-            """
-        )
+            """)
         row = await cursor.fetchone()
         await cursor.close()
 

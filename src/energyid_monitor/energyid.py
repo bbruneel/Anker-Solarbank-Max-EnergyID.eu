@@ -369,7 +369,9 @@ async def run_energyid_flow(
     logger.info(f"EnergyID webhook keys: {', '.join(webhook_keys)}")
 
     timestamp = int(time.time())
-    payload = battery.to_energyid_payload(snapshot, timestamp, webhook_keys=webhook_keys)
+    payload = battery.to_energyid_payload(
+        snapshot, timestamp, webhook_keys=webhook_keys
+    )
     logger.info(f"EnergyID payload: {payload}")
 
     await token_store.ensure_db(db_path)
@@ -389,8 +391,7 @@ async def run_energyid_flow(
         override=override,
     )
     logger.info(
-        "Effective upload interval={}s "
-        "(env={}s, hello_cached={}, override={})",
+        "Effective upload interval={}s " "(env={}s, hello_cached={}, override={})",
         interval,
         env_interval,
         sync_state["hello_upload_interval_seconds"],

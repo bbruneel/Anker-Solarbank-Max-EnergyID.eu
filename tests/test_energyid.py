@@ -284,7 +284,8 @@ async def test_run_energyid_flow_batches_pending_and_marks_sent(
     monkeypatch.setenv("ENERGYID_UPLOAD_INTERVAL_OVERRIDE", "true")
     monkeypatch.setenv("ENERGYID_READING_RETENTION_SECONDS", "604800")
 
-    await reading_store.enqueue({"ts": 100, "pv": 1.0}, db_path)
+    now = int(time.time())
+    await reading_store.enqueue({"ts": now - 60, "pv": 1.0}, db_path)
 
     snapshot = {
         "pv_total_generation": 2.0,
@@ -311,7 +312,7 @@ async def test_run_energyid_flow_batches_pending_and_marks_sent(
         ),
         patch(
             "energyid_monitor.energyid.battery.to_energyid_payload",
-            return_value={"ts": 200, "pv": 2.0},
+            return_value={"ts": now, "pv": 2.0},
         ),
         patch(
             "energyid_monitor.energyid.battery.format_snapshot",
@@ -331,7 +332,7 @@ async def test_run_energyid_flow_batches_pending_and_marks_sent(
 
     mock_post.assert_called_once()
     batch = mock_post.call_args.args[2]
-    assert batch == [{"ts": 100, "pv": 1.0}, {"ts": 200, "pv": 2.0}]
+    assert batch == [{"ts": now - 60, "pv": 1.0}, {"ts": now, "pv": 2.0}]
 
     pending = await reading_store.list_pending(db_path)
     assert pending == []
@@ -436,7 +437,7 @@ async def test_run_energyid_flow_failed_post_leaves_pending(
         ),
         patch(
             "energyid_monitor.energyid.battery.to_energyid_payload",
-            return_value={"ts": 300, "pv": 3.0},
+            return_value={"ts": int(time.time()), "pv": 3.0},
         ),
         patch(
             "energyid_monitor.energyid.battery.format_snapshot",
