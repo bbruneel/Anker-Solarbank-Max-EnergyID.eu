@@ -132,7 +132,7 @@ ENERGYID_CONSOLE_LOGGING=true uv run python -m energyid_monitor
 
 ### Configure scheduled runs
 
-Either use crontab as described in [CRONTAB-SETUP.md](CRONTAB-SETUP.md) or systemd timers as explained in [DEPLOYMENT.md](DEPLOYMENT.md). Match the interval to your EnergyID plan (`uploadInterval` from `/hello`: 24 h free, 15 min Premium, 60 s real-time add-on).
+Either use crontab as described in [CRONTAB-SETUP.md](CRONTAB-SETUP.md) or systemd timers as explained in [DEPLOYMENT.md](DEPLOYMENT.md). Match the interval to your EnergyID plan (`uploadInterval` from `/hello`: 24 h free, 15 min Premium, 60 s real-time add-on). You can also set `ENERGYID_UPLOAD_INTERVAL_SECONDS` (see offline queue below); the app enforces the stricter of that value and the last hello `uploadInterval` unless `ENERGYID_UPLOAD_INTERVAL_OVERRIDE=true`.
 
 ## Other guides
 
@@ -141,22 +141,37 @@ Either use crontab as described in [CRONTAB-SETUP.md](CRONTAB-SETUP.md) or syste
 - [DISTRIBUTION.md](DISTRIBUTION.md) — how to package and distribute this application
 - [AGENTS.md](AGENTS.md) — project map for contributors and coding agents
 
-## Token caching database
+## Token caching and offline reading queue
 
-The application uses SQLite to cache EnergyID bearer tokens and avoid unnecessary API calls.
+The application uses SQLite (`data/token.db`) for EnergyID tokens and an offline reading queue.
 
-- Database location: `data/token.db` (created on first run)
-- Schema migrations: SQL scripts in `dbscripts/` run automatically on first use
+**Tokens**
+
+- Schema migrations in `dbscripts/` run automatically on first use
 - Tokens are reused until they are within 1 hour of expiry
 - HTTP 401 from the webhook triggers an immediate `/hello` refresh and one retry
 
-View tokens:
+**Offline queue / batch catch-up**
+
+Each successful Modbus snapshot is always stored locally before upload. If EnergyID is unreachable (ISP outage, etc.), readings stay pending (`sent_at` NULL). On the next successful run the app POSTs **all pending readings as one JSON array** in a single webhook call (EnergyID batch upload), then sets `sent_at` on those rows. Rows are kept until they exceed retention (not deleted on success).
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ENERGYID_UPLOAD_INTERVAL_SECONDS` | `900` | Local minimum seconds between successful POSTs |
+| `ENERGYID_UPLOAD_INTERVAL_OVERRIDE` | `false` | If `true`, ignore hello’s `uploadInterval` |
+| `ENERGYID_READING_RETENTION_SECONDS` | `604800` | Drop readings whose `ts` is older than now − this |
+
+Effective upload interval (when override is false): `max(ENERGYID_UPLOAD_INTERVAL_SECONDS, last hello uploadInterval)`. Hello’s interval is cached in `sync_state` whenever `/hello` runs.
+
+View tokens / pending readings:
 
 ```bash
 sqlite3 data/token.db "SELECT twin_id, datetime(exp, 'unixepoch') as expires_at FROM tokens ORDER BY exp DESC LIMIT 5;"
+sqlite3 data/token.db "SELECT id, ts, sent_at IS NULL as pending FROM readings ORDER BY ts DESC LIMIT 20;"
+sqlite3 data/token.db "SELECT * FROM sync_state;"
 ```
 
-Clear cache:
+Clear cache (tokens and queued readings):
 
 ```bash
 rm data/token.db
