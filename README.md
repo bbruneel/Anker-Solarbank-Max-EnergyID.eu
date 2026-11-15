@@ -56,7 +56,7 @@ You should see model `A17E2`, firmware, SoC, live power, and lifetime energy tot
 
 ### Deploy latest release
 
-Download the latest release from GitHub Releases and extract the distribution package.
+Download the [latest release](https://github.com/bbruneel/Anker-Solarbank-Max-EnergyID.eu/releases/latest) and extract the distribution package.
 
 ```bash
 # This will create a folder called 'energyid-solarbank-monitor' with all files inside
